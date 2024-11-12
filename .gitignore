@@ -3,7 +3,3 @@
 
 # Ignore the node_modules folder
 /node_modules/*
-
-# Ignore the package files
-package-lock.json
-package.json
