@@ -44,14 +44,6 @@ const generateFileHash = (filePath) => {
 // Password for the page
 const PASSWORD = "mysecretpassword"; // Change this to your desired password
 
-// Middleware to check if the user is authenticated
-const checkAuthentication = (req, res, next) => {
-  if (req.session && req.session.isAuthenticated) {
-    return next(); // User is authenticated, proceed to next middleware
-  }
-  return res.redirect("/login"); // Redirect to login page if not authenticated
-};
-
 // Session setup (required for storing authentication state)
 app.use(session({
   secret: 'mysecretkey',  // change this secret key to a more secure value
@@ -61,6 +53,19 @@ app.use(session({
 
 // Body parser middleware to handle form data
 app.use(bodyParser.urlencoded({ extended: true })); // Make sure this is before your routes
+
+// Track whether authentication is enabled
+let isAuthenticationEnabled = true; // Default state is enabled
+
+// Middleware to check if the user is authenticated
+const checkAuthentication = (req, res, next) => {
+  if (isAuthenticationEnabled && req.session && req.session.isAuthenticated) {
+    return next(); // User is authenticated, proceed to next middleware
+  } else if (isAuthenticationEnabled) {
+    return res.redirect("/login"); // Redirect to login page if authentication is enabled and user is not authenticated
+  }
+  return next(); // If authentication is disabled, proceed without checking for login
+};
 
 // Serve login page
 app.get("/login", (req, res) => {
