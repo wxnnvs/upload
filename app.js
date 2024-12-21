@@ -3,6 +3,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const session = require("express-session");
+const bodyParser = require("body-parser"); // For parsing POST data
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,74 +41,123 @@ const generateFileHash = (filePath) => {
   });
 };
 
-app.get("/", (req, res) => {
-  res.send(`
-        <h1>Upload a File</h1>
-        <form id="uploadForm">
-            <input type="file" id="fileInput" name="file" />
-            <button type="button" onclick="uploadFile()">Upload</button>
-        </form>
-        <br>
-        <div id="progressContainer" style="display: none;">
-            <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
-            <span id="progressText">0%</span>
-        </div>
-        <div id="uploadStatus"></div>
+// Password for the page
+const PASSWORD = "mysecretpassword"; // Change this to your desired password
 
-        <script>
-            function uploadFile() {
-                const fileInput = document.getElementById('fileInput');
-                const file = fileInput.files[0];
-                if (!file) {
-                    alert('Please select a file first.');
-                    return;
+// Middleware to check if the user is authenticated
+const checkAuthentication = (req, res, next) => {
+  if (req.session && req.session.isAuthenticated) {
+    return next(); // User is authenticated, proceed to next middleware
+  }
+  return res.redirect("/login"); // Redirect to login page if not authenticated
+};
+
+// Session setup (required for storing authentication state)
+app.use(session({
+  secret: 'mysecretkey',  // change this secret key to a more secure value
+  resave: false,
+  saveUninitialized: true
+}));
+
+// Body parser middleware to handle form data
+app.use(bodyParser.urlencoded({ extended: true })); // Make sure this is before your routes
+
+// Serve login page
+app.get("/login", (req, res) => {
+  res.send(`
+    <h1>Login</h1>
+    <form action="/login" method="POST">
+      <label for="password">Password: </label>
+      <input type="password" id="password" name="password" required />
+      <button type="submit">Submit</button>
+    </form>
+  `);
+});
+
+// Handle login form submission
+app.post("/login", (req, res) => {
+  const { password } = req.body; // req.body.password is now properly populated
+  if (password === PASSWORD) {
+    // Password is correct, create a session and redirect to the upload page
+    req.session.isAuthenticated = true;
+    return res.redirect("/");
+  }
+  // Password is incorrect, show an error message
+  res.send(`
+    <h1>Login Failed</h1>
+    <p>Incorrect password. <a href="/login">Try again</a></p>
+  `);
+});
+
+// Serve the upload page only if authenticated
+app.get("/", checkAuthentication, (req, res) => {
+  res.send(`
+    <h1>Upload a File</h1>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" name="file" />
+        <button type="button" onclick="uploadFile()">Upload</button>
+    </form>
+    <br>
+    <div id="progressContainer" style="display: none;">
+        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
+        <span id="progressText">0%</span>
+    </div>
+    <div id="uploadStatus"></div>
+
+    <script>
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file first.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            // Show progress bar
+            document.getElementById('progressContainer').style.display = 'block';
+
+            // Update progress bar
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    document.getElementById('progressBar').value = percentComplete;
+                    document.getElementById('progressText').textContent = Math.round(percentComplete) + '%';
+                }
+            };
+
+            // Handle completion
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    document.getElementById('uploadStatus').innerHTML = xhr.responseText;
+                } else {
+                    document.getElementById('uploadStatus').textContent = 'Upload failed.';
                 }
 
-                const formData = new FormData();
-                formData.append('file', file);
+                // Reset progress bar after upload
+                document.getElementById('progressContainer').style.display = 'none';
+                document.getElementById('progressBar').value = 0;
+                document.getElementById('progressText').textContent = '0%';
+            };
 
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/upload', true);
+            xhr.onerror = () => {
+                document.getElementById('uploadStatus').textContent = 'Upload failed.';
+            };
 
-                // Show progress bar
-                document.getElementById('progressContainer').style.display = 'block';
-
-                // Update progress bar
-                xhr.upload.onprogress = (event) => {
-                    if (event.lengthComputable) {
-                        const percentComplete = (event.loaded / event.total) * 100;
-                        document.getElementById('progressBar').value = percentComplete;
-                        document.getElementById('progressText').textContent = Math.round(percentComplete) + '%';
-                    }
-                };
-
-                // Handle completion
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        document.getElementById('uploadStatus').innerHTML = xhr.responseText;
-                    } else {
-                        document.getElementById('uploadStatus').textContent = 'Upload failed.';
-                    }
-
-                    // Reset progress bar after upload
-                    document.getElementById('progressContainer').style.display = 'none';
-                    document.getElementById('progressBar').value = 0;
-                    document.getElementById('progressText').textContent = '0%';
-                };
-
-                xhr.onerror = () => {
-                    document.getElementById('uploadStatus').textContent = 'Upload failed.';
-                };
-
-                // Send the file
-                xhr.send(formData);
-            }
-        </script>
-    `);
+            // Send the file
+            xhr.send(formData);
+        }
+    </script>
+`);
 });
 
 // Handle file upload
-app.post("/upload", upload.single("file"), async (req, res) => {
+app.post("/upload", checkAuthentication, upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).send("No file uploaded");
   }
@@ -149,28 +200,6 @@ app.get("/file/:hash", (req, res) => {
     }
   });
 });
-
-// Clear old files periodically (e.g., every hour)
-setInterval(() => {
-  const expiration = 60 * 60 * 1000; // 1 hour in milliseconds
-  fs.readdir(UPLOAD_DIR, (err, files) => {
-    if (err) return console.error("Error reading upload directory:", err);
-
-    files.forEach((file) => {
-      const filePath = path.join(UPLOAD_DIR, file);
-      fs.stat(filePath, (err, stats) => {
-        if (err) return console.error("Error getting file stats:", err);
-
-        if (Date.now() - stats.mtimeMs > expiration) {
-          fs.unlink(filePath, (err) => {
-            if (err) console.error("Error deleting file:", err);
-            else console.log("Deleted old file:", file);
-          });
-        }
-      });
-    });
-  });
-}, 60 * 60 * 1000); // Run every hour
 
 // Start the server
 app.listen(PORT, () => {
