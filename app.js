@@ -94,6 +94,12 @@ app.post("/login", (req, res) => {
   `);
 });
 
+// Handle logout
+app.post("/logout", (req, res) => {
+  req.session.isAuthenticated = false;
+  res.redirect("/login");
+});
+
 // Serve the upload page only if authenticated
 app.get("/", checkAuthentication, (req, res) => {
   res.send(`
@@ -108,6 +114,12 @@ app.get("/", checkAuthentication, (req, res) => {
         <span id="progressText">0%</span>
     </div>
     <div id="uploadStatus"></div>
+
+    ${isAuthenticationEnabled ? `
+    <form action="/logout" method="POST">
+      <button type="submit">Logout</button>
+    </form>
+    ` : ''}
 
     <script>
         function uploadFile() {
