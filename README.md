@@ -32,6 +32,10 @@ This is a simple file upload application built with Express and Multer.
 
     Open your web browser and navigate to `http://localhost:3000`.
 
+# Docker
+
+`docker run -p 3000:3000 -v /path/to/local/uploads:/app/uploads --restart unless-stopped wxnnvs/upload`
+
 ## Project Structure
 
 - `app.js`: Main application file.
@@ -45,7 +49,6 @@ This is a simple file upload application built with Express and Multer.
 - File storage with unique filenames.
 - MD5 hash generation for uploaded files.
 - Download files by hash.
-- Periodic cleanup of old files.
 
 ## License
 
