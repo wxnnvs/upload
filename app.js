@@ -12,6 +12,13 @@ const PORT = process.env.PORT || 3000;
 // Temporary storage folder for uploads
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 
+// Password for the page
+const PASSWORD = "mysecretpassword"; // Change this to your desired password
+
+// Configuration for periodic file clearing
+const CLEAR_FILES_ENABLED = false; // Set to false to disable
+const CLEAR_FILES_INTERVAL_HOURS = 1; // Set the interval in hours
+
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR);
@@ -41,9 +48,6 @@ const generateFileHash = (filePath) => {
     stream.on("error", reject);
   });
 };
-
-// Password for the page
-const PASSWORD = "mysecretpassword"; // Change this to your desired password
 
 // Session setup (required for storing authentication state)
 app.use(session({
@@ -244,6 +248,29 @@ app.get("/file/:hash", (req, res) => {
     }
   });
 });
+
+if (CLEAR_FILES_ENABLED) {
+  setInterval(() => {
+    const expiration = CLEAR_FILES_INTERVAL_HOURS * 60 * 60 * 1000; // Convert hours to milliseconds
+    fs.readdir(UPLOAD_DIR, (err, files) => {
+      if (err) return console.error("Error reading upload directory:", err);
+
+      files.forEach((file) => {
+        const filePath = path.join(UPLOAD_DIR, file);
+        fs.stat(filePath, (err, stats) => {
+          if (err) return console.error("Error getting file stats:", err);
+
+          if (Date.now() - stats.mtimeMs > expiration) {
+            fs.unlink(filePath, (err) => {
+              if (err) console.error("Error deleting file:", err);
+              else console.log("Deleted old file:", file);
+            });
+          }
+        });
+      });
+    });
+  }, CLEAR_FILES_INTERVAL_HOURS * 60 * 60 * 1000); // Convert hours to milliseconds
+}
 
 // Start the server
 app.listen(PORT, () => {
