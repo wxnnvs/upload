@@ -58,4 +58,6 @@ To edit the password follow these steps:
 
 ## License
 
-This project is licensed under the ISC License.
+This project is licensed under the DO WHATEVER THE FUCK U WANT LICENSE
+
+(leaving a mention would be nice tho)
