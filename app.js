@@ -23,8 +23,9 @@ const storage = multer.diskStorage({
     cb(null, UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + "-" + file.originalname);
+    // const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    // cb(null, uniqueSuffix + "-" + file.originalname);
+    cb(null, file.originalname);
   },
 });
 
@@ -180,16 +181,27 @@ app.post("/upload", checkAuthentication, upload.single("file"), async (req, res)
   }
 
   try {
-    const filePath = path.join(UPLOAD_DIR, req.file.filename);
+    const filePath = path.join(UPLOAD_DIR, req.file.originalname);
     const fileHash = await generateFileHash(filePath);
 
-    // Save the hash for file access later
+    // Check if the hash file already exists
     const hashFilePath = path.join(UPLOAD_DIR, `${fileHash}.meta`);
-    fs.writeFileSync(hashFilePath, req.file.filename);
+    if (fs.existsSync(hashFilePath)) {
+      return res.send(
+        `File uploaded succesfully: <a href="/file/${fileHash}">${req.file.originalname}</a>`
+      );
+    }
 
-    res.send(
-      `File uploaded successfully: <a href="/file/${fileHash}">${req.file.originalname}</a>`
-    );
+    else {
+      // Save the hash for file access later
+      fs.writeFileSync(hashFilePath, req.file.originalname);
+  
+      res.send(
+        `File uploaded successfully: <a href="/file/${fileHash}">${req.file.originalname}</a>`
+      );
+    }
+
+    
   } catch (error) {
     console.error("Error generating file hash:", error);
     res.status(500).send("Error processing file");
@@ -206,11 +218,11 @@ app.get("/file/:hash", (req, res) => {
     return res.status(404).send("File not found");
   }
 
-  const filename = fs.readFileSync(hashFilePath, "utf-8");
-  const filePath = path.join(UPLOAD_DIR, filename);
+  const originalname = fs.readFileSync(hashFilePath, "utf-8");
+  const filePath = path.join(UPLOAD_DIR, originalname);
 
   // Send the file as an attachment
-  res.download(filePath, filename, (err) => {
+  res.download(filePath, originalname, (err) => {
     if (err) {
       console.error("Error sending file:", err);
       res.status(500).send("Error downloading file");
