@@ -2,6 +2,16 @@
 
 This is a simple file upload application built with Express and Multer.
 
+# Docker
+
+`docker run -p 3000:3000 -v /path/to/local/uploads:/app/uploads --restart unless-stopped wxnnvs/upload`
+
+To edit the password follow these steps:
+1. `docker cp <containername or -id>:/app/app.js .`
+2. Edit local `app.js` as you want
+3. `docker cp app.js <containername or -id>:/app/app.js`
+
+# Manual
 ## Prerequisites
 
 - Node.js (v12 or higher)
@@ -45,7 +55,6 @@ This is a simple file upload application built with Express and Multer.
 - File storage with unique filenames.
 - MD5 hash generation for uploaded files.
 - Download files by hash.
-- Periodic cleanup of old files.
 
 ## License
 
