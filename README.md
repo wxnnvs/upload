@@ -1,5 +1,7 @@
 # File Upload Application
 
+DEMO PASSWORD IS "mysecretpassword"
+
 This is a simple file upload application built with Express and Multer.
 
 # Docker
