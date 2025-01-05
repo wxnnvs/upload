@@ -113,6 +113,7 @@ app.get("/", checkAuthentication, (req, res) => {
     <div id="progressContainer" style="display: none;">
         <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
         <span id="progressText">0%</span>
+        <span id="uploadSpeed"></span>
     </div>
     <div id="uploadStatus"></div>
 
@@ -140,12 +141,19 @@ app.get("/", checkAuthentication, (req, res) => {
             // Show progress bar
             document.getElementById('progressContainer').style.display = 'block';
 
+            let startTime = Date.now(); // Add this line
+
             // Update progress bar
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
                     const percentComplete = (event.loaded / event.total) * 100;
                     document.getElementById('progressBar').value = percentComplete;
                     document.getElementById('progressText').textContent = Math.round(percentComplete) + '%';
+
+                    // Calculate and display upload speed
+                    const elapsedTime = (Date.now() - startTime) / 1000; // seconds
+                    const uploadSpeed = (event.loaded / elapsedTime / 1024).toFixed(2); // KB/s
+                    document.getElementById('uploadSpeed').textContent = uploadSpeed+ ' KB/s';
                 }
             };
 
@@ -161,6 +169,7 @@ app.get("/", checkAuthentication, (req, res) => {
                 document.getElementById('progressContainer').style.display = 'none';
                 document.getElementById('progressBar').value = 0;
                 document.getElementById('progressText').textContent = '0%';
+                document.getElementById('uploadSpeed').textContent = ''; // Reset upload speed
             };
 
             xhr.onerror = () => {
