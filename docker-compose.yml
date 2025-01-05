@@ -1,0 +1,29 @@
+# example docker compose setup with caddy for production
+
+services:
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile  # Bind Caddyfile
+      - caddy_data:/data  # Persist Let's Encrypt certificates
+      - caddy_config:/config  # Persist Caddy config
+    ports:
+      - "80:80"   # HTTP port
+      - "443:443" # HTTPS port
+    environment:
+      - ACME_AGREE=true  # Automatically agree to Let's Encrypt terms
+    restart: unless-stopped
+
+  upload:
+    image: wxnnvs/upload:latest
+    container_name: upload
+    volumes:
+      - ./upload/uploads:/app/uploads
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
