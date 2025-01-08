@@ -60,7 +60,7 @@ app.use(session({
 app.use(bodyParser.urlencoded({ extended: true })); // Make sure this is before your routes
 
 // Track whether authentication is enabled
-let isAuthenticationEnabled = true; // Default state is enabled
+let isAuthenticationEnabled = false; // Default state is enabled
 
 // Middleware to check if the user is authenticated
 const checkAuthentication = (req, res, next) => {
@@ -191,6 +191,40 @@ app.get("/", checkAuthentication, (req, res) => {
         }
     </script>
 `);
+});
+
+// Browse files
+app.get("/browse", checkAuthentication, (req, res) => {
+  fs.readdir(UPLOAD_DIR, (err, files) => {
+
+    if (err) {
+      return res.status(500).send("Error reading upload directory");
+    }
+
+    const fileList = files
+      .filter((file) => file.endsWith(".meta"))
+      .map((file) => {
+        try {
+          const filePath = path.join(UPLOAD_DIR, file);
+          // read file contents, this refers to another file
+          const ogFile = fs.readFileSync(filePath, "utf-8").trim();
+          const ogFilePath = path.join(UPLOAD_DIR, ogFile);
+          const stats = fs.statSync(ogFilePath);
+            return { name: ogFile, size: stats.size, link: file.replace('.meta', '') };
+        } catch (error) {
+          console.error(`Error processing file ${file}:`, error);
+          return null;
+        }
+      })
+      .filter((file) => file !== null);
+
+    res.send(`
+      <h1>File List</h1>
+      <ul>
+        ${fileList.map((file) => `<li><a href="/file/${file.link}">${file.name}</a> (${(file.size / (1024 * 1024)).toFixed(2)} MB)</li>`).join("")}
+      </ul>
+    `);
+  });
 });
 
 // Handle file upload
