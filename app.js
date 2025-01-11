@@ -12,6 +12,9 @@ const PORT = process.env.PORT || 3000;
 // Temporary storage folder for uploads
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 
+// Serve static files from the "public" directory
+app.use(express.static(path.join(__dirname, "public")));
+
 // Password for the page
 const PASSWORD = "mysecretpassword"; // Change this to your desired password
 
@@ -60,7 +63,7 @@ app.use(session({
 app.use(bodyParser.urlencoded({ extended: true })); // Make sure this is before your routes
 
 // Track whether authentication is enabled
-let isAuthenticationEnabled = false; // Default state is enabled
+let isAuthenticationEnabled = true; // Default state is enabled
 
 // Middleware to check if the user is authenticated
 const checkAuthentication = (req, res, next) => {
@@ -75,6 +78,7 @@ const checkAuthentication = (req, res, next) => {
 // Serve login page
 app.get("/login", (req, res) => {
   res.send(`
+    <link rel="stylesheet" type="text/css" href="/style.css">
     <h1>Login</h1>
     <form action="/login" method="POST">
       <label for="password">Password: </label>
@@ -94,6 +98,7 @@ app.post("/login", (req, res) => {
   }
   // Password is incorrect, show an error message
   res.send(`
+    <link rel="stylesheet" type="text/css" href="/style.css">
     <h1>Login Failed</h1>
     <p>Incorrect password. <a href="/login">Try again</a></p>
   `);
@@ -108,6 +113,7 @@ app.post("/logout", (req, res) => {
 // Serve the upload page only if authenticated
 app.get("/", checkAuthentication, (req, res) => {
   res.send(`
+    <link rel="stylesheet" type="text/css" href="/style.css">
     <h1>Upload a File</h1>
     <form id="uploadForm">
         <input type="file" id="fileInput" name="file" />
@@ -219,6 +225,7 @@ app.get("/browse", checkAuthentication, (req, res) => {
       .filter((file) => file !== null);
 
     res.send(`
+      <link rel="stylesheet" type="text/css" href="/style.css">
       <h1>File List</h1>
       <ul>
         ${fileList.map((file) => `<li><a href="/file/${file.link}">${file.name}</a> (${(file.size / (1024 * 1024)).toFixed(2)} MB)</li>`).join("")}
