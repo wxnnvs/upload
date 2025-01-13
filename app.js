@@ -78,13 +78,23 @@ const checkAuthentication = (req, res, next) => {
 // Serve login page
 app.get("/login", (req, res) => {
   res.send(`
+    <DOCTYPE html>
+    <html>
+    <head>
+    <title>Login</title>
+    </head>
+    <body>
     <link rel="stylesheet" type="text/css" href="/style.css">
     <h1>Login</h1>
     <form action="/login" method="POST">
       <label for="password">Password: </label>
       <input type="password" id="password" name="password" required />
+      <br>
+      <br>
       <button type="submit">Submit</button>
     </form>
+    </body>
+    </html>
   `);
 });
 
@@ -98,9 +108,24 @@ app.post("/login", (req, res) => {
   }
   // Password is incorrect, show an error message
   res.send(`
+    <DOCTYPE html>
+    <html>
+    <head>
+    <title>Login</title>
+    </head>
+    <body>
     <link rel="stylesheet" type="text/css" href="/style.css">
-    <h1>Login Failed</h1>
-    <p>Incorrect password. <a href="/login">Try again</a></p>
+    <h1>Login</h1>
+    <form action="/login" method="POST">
+      <label for="password">Password: </label>
+      <input type="password" id="password" name="password" required />
+      <br>
+      <br>
+      <button type="submit">Submit</button>
+    </form>
+    <p class="error">Incorrect password.</p>
+    </body>
+    </html>
   `);
 });
 
@@ -113,10 +138,18 @@ app.post("/logout", (req, res) => {
 // Serve the upload page only if authenticated
 app.get("/", checkAuthentication, (req, res) => {
   res.send(`
+    <DOCTYPE html>
+    <html>
+    <head>
+    <title>Upload</title>
+    </head>
+    <body>
     <link rel="stylesheet" type="text/css" href="/style.css">
     <h1>Upload a File</h1>
     <form id="uploadForm">
         <input type="file" id="fileInput" name="file" />
+        <br>
+        <br>
         <button type="button" onclick="uploadFile()">Upload</button>
     </form>
     <br>
@@ -130,7 +163,7 @@ app.get("/", checkAuthentication, (req, res) => {
 
     ${isAuthenticationEnabled ? `
     <form action="/logout" method="POST">
-      <button type="submit">Logout</button>
+      <button type="submit" class="logout">Logout</button>
     </form>
     ` : ''}
 
@@ -196,6 +229,8 @@ app.get("/", checkAuthentication, (req, res) => {
             xhr.send(formData);
         }
     </script>
+    </body>
+    </html>
 `);
 });
 
@@ -216,7 +251,8 @@ app.get("/browse", checkAuthentication, (req, res) => {
           const ogFile = fs.readFileSync(filePath, "utf-8").trim();
           const ogFilePath = path.join(UPLOAD_DIR, ogFile);
           const stats = fs.statSync(ogFilePath);
-            return { name: ogFile, size: stats.size, link: file.replace('.meta', '') };
+            const shortName = ogFile.length > 60 ? ogFile.slice(0, 30) + "..." + ogFile.slice(-27) : ogFile;
+            return { fullName: ogFile, shortName: shortName, size: stats.size, link: file.replace('.meta', '') };
         } catch (error) {
           console.error(`Error processing file ${file}:`, error);
           return null;
@@ -228,7 +264,7 @@ app.get("/browse", checkAuthentication, (req, res) => {
       <link rel="stylesheet" type="text/css" href="/style.css">
       <h1>File List</h1>
       <ul>
-        ${fileList.map((file) => `<li><a href="/file/${file.link}">${file.name}</a> (${(file.size / (1024 * 1024)).toFixed(2)} MB)</li>`).join("")}
+        ${fileList.map((file) => `<li title="${file.fullName}"><a class="file-link" href="/file/${file.link}">${file.shortName}</a> (${(file.size / (1024 * 1024)).toFixed(2)} MB)</li>`).join("")}
       </ul>
     `);
   });
@@ -248,7 +284,7 @@ app.post("/upload", checkAuthentication, upload.single("file"), async (req, res)
     const hashFilePath = path.join(UPLOAD_DIR, `${fileHash}.meta`);
     if (fs.existsSync(hashFilePath)) {
       return res.send(
-        `File uploaded succesfully: <a href="/file/${fileHash}">${req.file.originalname}</a>`
+        `<p class="succes">File uploaded succesfully:<br> <a href="/file/${fileHash}">${req.file.originalname}</a></p>`
       );
     }
 
@@ -257,7 +293,7 @@ app.post("/upload", checkAuthentication, upload.single("file"), async (req, res)
       fs.writeFileSync(hashFilePath, req.file.originalname);
   
       res.send(
-        `File uploaded successfully: <a href="/file/${fileHash}">${req.file.originalname}</a>`
+        `<p class="succes">File uploaded succesfully:<br> <a href="/file/${fileHash}">${req.file.originalname}</a></p>`
       );
     }
 

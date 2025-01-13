@@ -9,10 +9,6 @@ body {
     align-items: center;
     height: 100vh;
     margin: 0;
-}
-
-/* Centering content */
-.container {
     text-align: center;
 }
 
@@ -41,8 +37,8 @@ input[type="file"]::file-selector-button:hover {
 
 /* Styling for anchors */
 a {
-    color: #ffffff;
-    text-decoration: none;
+    color: #d2edfa;
+    text-decoration: underline;
 }
 
 a:hover {
@@ -58,4 +54,62 @@ button {
     padding: 10px 20px;
     border-radius: 5px;
     cursor: pointer;
+}
+
+button:hover {
+    background-color: #555555;
+}
+
+/* Styling for logout button */
+.logout {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #ff4d4d;
+}
+
+.logout:hover {
+    background-color: #ff6666;
+}
+
+/* Styling for error messages */
+.error {
+    background-color: #ff4d4d;
+    color: #ffffff;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    width: fit-content;
+}
+
+/* Styling for success messages */
+.success {
+    background-color: #4CAF50;
+    color: #ffffff;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    width: fit-content;
+}
+
+/* Styling for UL file list */
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+/* Styling for LI file list */
+li {
+    background-color: #333333;
+    color: #ffffff;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-link {
+    margin-right: 15px;
 }
