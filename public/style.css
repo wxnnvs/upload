@@ -35,6 +35,15 @@ input[type="file"]::file-selector-button:hover {
     background-color: #777777;
 }
 
+/* Styling for password inputs */
+input[type="password"] {
+    background-color: #333333;
+    color: #ffffff;
+    border: 1px solid #444444;
+    padding: 10px;
+    border-radius: 5px;
+}
+
 /* Styling for anchors */
 a {
     color: #d2edfa;
@@ -90,6 +99,24 @@ button:hover {
     border-radius: 5px;
     margin: 10px 0;
     width: fit-content;
+}
+
+/* Styling for an accent 'browse' button */
+.nav {
+    background-color: #245072;
+    color: #ffffff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    position: absolute;
+    top: 80%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.nav:hover {
+    background-color: #1d3a4a;
 }
 
 /* Styling for UL file list */

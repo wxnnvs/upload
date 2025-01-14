@@ -78,7 +78,7 @@ const checkAuthentication = (req, res, next) => {
 // Serve login page
 app.get("/login", (req, res) => {
   res.send(`
-    <DOCTYPE html>
+    <!DOCTYPE html>
     <html>
     <head>
     <title>Login</title>
@@ -108,7 +108,7 @@ app.post("/login", (req, res) => {
   }
   // Password is incorrect, show an error message
   res.send(`
-    <DOCTYPE html>
+    <!DOCTYPE html>
     <html>
     <head>
     <title>Login</title>
@@ -138,7 +138,7 @@ app.post("/logout", (req, res) => {
 // Serve the upload page only if authenticated
 app.get("/", checkAuthentication, (req, res) => {
   res.send(`
-    <DOCTYPE html>
+    <!DOCTYPE html>
     <html>
     <head>
     <title>Upload</title>
@@ -152,6 +152,7 @@ app.get("/", checkAuthentication, (req, res) => {
         <br>
         <button type="button" onclick="uploadFile()">Upload</button>
     </form>
+    <button class="nav" onclick="window.location.href='/browse'">Browse Files</button>
     <br>
     <div id="progressContainer" style="display: none;">
         <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
@@ -266,6 +267,12 @@ app.get("/browse", checkAuthentication, (req, res) => {
       <ul>
         ${fileList.map((file) => `<li title="${file.fullName}"><a class="file-link" href="/file/${file.link}">${file.shortName}</a> (${(file.size / (1024 * 1024)).toFixed(2)} MB)</li>`).join("")}
       </ul>
+      <button class="nav" onclick="window.location.href='/'">Upload More Files</button>
+      ${isAuthenticationEnabled ? `
+        <form action="/logout" method="POST">
+          <button type="submit" class="logout">Logout</button>
+        </form>
+        ` : ''}
     `);
   });
 });
