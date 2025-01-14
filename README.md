@@ -24,8 +24,8 @@ To edit the password follow these steps:
 1. **Clone the repository:**
 
     ```sh
-    git clone <repository-url>
-    cd <repository-directory>
+    git clone https://github.com/wxnnvs/upload
+    cd upload
     ```
 
 2. **Install dependencies:**
