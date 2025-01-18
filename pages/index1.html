@@ -16,6 +16,12 @@
         <br>
         <button type="button" onclick="checkFile()">Upload</button>
     </form>
+    <div id="progressContainer" style="display: none;">
+        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
+        <span id="progressText">0%</span>
+        <span id="uploadSpeed"></span>
+        <span id="eta"></span>
+    </div>
     <p id="uploadStatus"></p>
     <button class="nav" onclick="window.location.href='/browse'">Browse Files</button>
 
@@ -59,7 +65,7 @@
 
                 fetch('/file/' + md5).then(response => {
                     if (response.ok) {
-                        document.getElementById('uploadStatus').innerHTML = '<p class="success">File uploaded succesfully:<br> <a href="/file/' + md5 + '">' + fileName + '</a></p>';
+                        document.getElementById('uploadStatus').innerHTML = '<p class="success">File uploaded successfully:<br> <a href="/file/' + md5 + '">' + fileName + '</a></p>';
                         return;
                     }
                     else {
@@ -78,12 +84,42 @@
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/upload', true);
 
+            // Show progress bar
+            document.getElementById('progressContainer').style.display = 'block';
+
+            let startTime = Date.now(); // Add this line
+
+            // Update progress bar
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    document.getElementById('progressBar').value = percentComplete;
+                    document.getElementById('progressText').textContent = Math.round(percentComplete) + '%';
+
+                    // Calculate and display upload speed
+                    const elapsedTime = (Date.now() - startTime) / 1000; // seconds
+                    const uploadSpeed = (event.loaded / elapsedTime / 1024).toFixed(2); // KB/s
+                    document.getElementById('uploadSpeed').textContent = uploadSpeed + ' KB/s';
+
+                    // Calculate and display ETA
+                    const remainingTime = ((event.total - event.loaded) / (event.loaded / elapsedTime)).toFixed(2); // seconds
+                    document.getElementById('eta').textContent = remainingTime + 's';
+                }
+            };
+
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     document.getElementById('uploadStatus').innerHTML = xhr.responseText;
                 } else {
                     document.getElementById('uploadStatus').textContent = 'Upload failed.';
                 }
+
+                // Reset progress bar after upload
+                document.getElementById('progressContainer').style.display = 'none';
+                document.getElementById('progressBar').value = 0;
+                document.getElementById('progressText').textContent = '0%';
+                document.getElementById('uploadSpeed').textContent = ''; // Reset upload speed
+                document.getElementById('eta').textContent = ''; // Reset ETA
             };
 
             xhr.onerror = () => {

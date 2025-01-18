@@ -16,6 +16,12 @@
         <br>
         <button type="button" onclick="checkFile()">Upload</button>
     </form>
+    <div id="progressContainer" style="display: none;">
+        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
+        <span id="progressText">0%</span>
+        <span id="uploadSpeed"></span>
+        <span id="eta"></span>
+    </div>
     <p id="uploadStatus"></p>
     <button class="nav" onclick="window.location.href='/browse'">Browse Files</button>
 
