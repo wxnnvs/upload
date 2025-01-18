@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY app.js .
 COPY public ./public
+COPY pages ./pages
 
 RUN npm install
 
