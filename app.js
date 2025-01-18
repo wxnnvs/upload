@@ -1,10 +1,10 @@
 const express = require("express");
-const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const session = require("express-session");
 const bodyParser = require("body-parser"); // For parsing POST data
+const multer = require("multer"); // For handling multipart/form-data
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +14,22 @@ const UPLOAD_DIR = path.join(__dirname, "uploads");
 
 // Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, "public")));
+
+// Configure Multer with diskStorage for efficient file saving
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = UPLOAD_DIR;
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir); // Ensure the upload directory exists
+    }
+    cb(null, uploadDir); // Save files directly to ./uploads
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname);
+  },
+});
+
+const upload = multer({ storage: storage }).single("file");
 
 // Password for the page
 const PASSWORD = "mysecretpassword"; // Change this to your desired password
@@ -27,20 +43,6 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR);
 }
 
-// Configure Multer for file storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    // const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    // cb(null, uniqueSuffix + "-" + file.originalname);
-    cb(null, file.originalname);
-  },
-});
-
-const upload = multer({ storage });
-
 // Generate an MD5 hash for a file
 const generateFileHash = (filePath) => {
   return new Promise((resolve, reject) => {
@@ -53,11 +55,13 @@ const generateFileHash = (filePath) => {
 };
 
 // Session setup (required for storing authentication state)
-app.use(session({
-  secret: 'mysecretkey',  // change this secret key to a more secure value
-  resave: false,
-  saveUninitialized: true
-}));
+app.use(
+  session({
+    secret: "mysecretkey", // change this secret key to a more secure value
+    resave: false,
+    saveUninitialized: true,
+  })
+);
 
 // Body parser middleware to handle form data
 app.use(bodyParser.urlencoded({ extended: true })); // Make sure this is before your routes
@@ -145,31 +149,50 @@ app.get("/", checkAuthentication, (req, res) => {
     </head>
     <body>
     <link rel="stylesheet" type="text/css" href="/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
     <h1>Upload a File</h1>
-    <form id="uploadForm">
+    <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
         <input type="file" id="fileInput" name="file" />
+        <input type="hidden" id="md5Input" name="md5">
         <br>
         <br>
-        <button type="button" onclick="uploadFile()">Upload</button>
+        <button type="button" onclick="checkFile()">Upload</button>
     </form>
+    <p id="uploadStatus"></p>
     <button class="nav" onclick="window.location.href='/browse'">Browse Files</button>
-    <br>
-    <div id="progressContainer" style="display: none;">
-        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
-        <span id="progressText">0%</span>
-        <span id="uploadSpeed"></span>
-        <span id="eta"></span>
-    </div>
-    <div id="uploadStatus"></div>
 
-    ${isAuthenticationEnabled ? `
+    ${
+      isAuthenticationEnabled
+        ? `
     <form action="/logout" method="POST">
       <button type="submit" class="logout">Logout</button>
     </form>
-    ` : ''}
+    `
+        : ""
+    }
 
     <script>
-        function uploadFile() {
+        async function generateMD5(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                const md5 = CryptoJS.algo.MD5.create();
+
+                reader.onload = function(event) {
+                    const data = event.target.result;
+                    const wordArray = CryptoJS.lib.WordArray.create(data);
+                    md5.update(wordArray);
+                    resolve(md5.finalize().toString(CryptoJS.enc.Hex)); // Return the hash as a hex string
+                };
+
+                reader.onerror = function() {
+                    reject(new Error("Error reading the file"));
+                };
+
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function checkFile() {
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
             if (!file) {
@@ -177,56 +200,44 @@ app.get("/", checkAuthentication, (req, res) => {
                 return;
             }
 
+            try {
+                const md5 = await generateMD5(file); // Wait for MD5 hash generation
+                document.getElementById('md5Input').value = md5;
+                const fileName = file.name;
+
+                fetch('/file/' + md5).then(response => {
+                    if (response.ok) {
+                        document.getElementById('uploadStatus').innerHTML = '<p class="success">File uploaded succesfully:<br> <a href="/file/' + md5 + '">' + fileName + '</a></p>';
+                        return;
+                    }
+                    else {
+                      sendFile(file, md5);
+                    }
+                });
+            } catch (error) {
+                alert('Error generating MD5 hash: ' + error.message);
+            }
+        }
+
+        function sendFile(file, md5) {
             const formData = new FormData();
             formData.append('file', file);
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/upload', true);
 
-            // Show progress bar
-            document.getElementById('progressContainer').style.display = 'block';
-
-            let startTime = Date.now(); // Add this line
-
-            // Update progress bar
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentComplete = (event.loaded / event.total) * 100;
-                    document.getElementById('progressBar').value = percentComplete;
-                    document.getElementById('progressText').textContent = Math.round(percentComplete) + '%';
-
-                    // Calculate and display upload speed
-                    const elapsedTime = (Date.now() - startTime) / 1000; // seconds
-                    const uploadSpeed = (event.loaded / elapsedTime / 1024).toFixed(2); // KB/s
-                    document.getElementById('uploadSpeed').textContent = uploadSpeed+' KB/s';
-
-                    // Calculate and display ETA
-                    const remainingTime = ((event.total - event.loaded) / (event.loaded / elapsedTime)).toFixed(2); // seconds
-                    document.getElementById('eta').textContent = remainingTime+'s';
-                }
-            };
-
-            // Handle completion
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     document.getElementById('uploadStatus').innerHTML = xhr.responseText;
                 } else {
                     document.getElementById('uploadStatus').textContent = 'Upload failed.';
                 }
-
-                // Reset progress bar after upload
-                document.getElementById('progressContainer').style.display = 'none';
-                document.getElementById('progressBar').value = 0;
-                document.getElementById('progressText').textContent = '0%';
-                document.getElementById('uploadSpeed').textContent = ''; // Reset upload speed
-                document.getElementById('eta').textContent = ''; // Reset ETA
             };
 
             xhr.onerror = () => {
                 document.getElementById('uploadStatus').textContent = 'Upload failed.';
             };
 
-            // Send the file
             xhr.send(formData);
         }
     </script>
@@ -238,7 +249,6 @@ app.get("/", checkAuthentication, (req, res) => {
 // Browse files
 app.get("/browse", checkAuthentication, (req, res) => {
   fs.readdir(UPLOAD_DIR, (err, files) => {
-
     if (err) {
       return res.status(500).send("Error reading upload directory");
     }
@@ -252,8 +262,16 @@ app.get("/browse", checkAuthentication, (req, res) => {
           const ogFile = fs.readFileSync(filePath, "utf-8").trim();
           const ogFilePath = path.join(UPLOAD_DIR, ogFile);
           const stats = fs.statSync(ogFilePath);
-            const shortName = ogFile.length > 60 ? ogFile.slice(0, 30) + "..." + ogFile.slice(-27) : ogFile;
-            return { fullName: ogFile, shortName: shortName, size: stats.size, link: file.replace('.meta', '') };
+          const shortName =
+            ogFile.length > 60
+              ? ogFile.slice(0, 30) + "..." + ogFile.slice(-27)
+              : ogFile;
+          return {
+            fullName: ogFile,
+            shortName: shortName,
+            size: stats.size,
+            link: file.replace(".meta", ""),
+          };
         } catch (error) {
           console.error(`Error processing file ${file}:`, error);
           return null;
@@ -265,23 +283,39 @@ app.get("/browse", checkAuthentication, (req, res) => {
       <link rel="stylesheet" type="text/css" href="/style.css">
       <h1>File List</h1>
       <ul>
-        ${fileList.map((file) => `<li title="${file.fullName}"><a class="file-link" href="/file/${file.link}">${file.shortName}</a> (${(file.size / (1024 * 1024)).toFixed(2)} MB)</li>`).join("")}
+        ${fileList
+          .map(
+            (file) =>
+              `<li title="${file.fullName}"><a class="file-link" href="/file/${
+                file.link
+              }">${file.shortName}</a> (${(file.size / (1024 * 1024)).toFixed(
+                2
+              )} MB)</li>`
+          )
+          .join("")}
       </ul>
       <button class="nav" onclick="window.location.href='/'">Upload More Files</button>
-      ${isAuthenticationEnabled ? `
+      ${
+        isAuthenticationEnabled
+          ? `
         <form action="/logout" method="POST">
           <button type="submit" class="logout">Logout</button>
         </form>
-        ` : ''}
+        `
+          : ""
+      }
     `);
   });
 });
 
-// Handle file upload
-app.post("/upload", checkAuthentication, upload.single("file"), async (req, res) => {
+app.post("/upload", checkAuthentication, upload, async (req, res) => {
   if (!req.file) {
     return res.status(400).send("No file uploaded");
   }
+
+  const md5 = req.body.md5; // Get the MD5 hash from the request body
+  console.log("Uploaded file:", req.file.originalname);
+  console.log("MD5:", md5); // Log the MD5 hash
 
   try {
     const filePath = path.join(UPLOAD_DIR, req.file.originalname);
@@ -291,20 +325,16 @@ app.post("/upload", checkAuthentication, upload.single("file"), async (req, res)
     const hashFilePath = path.join(UPLOAD_DIR, `${fileHash}.meta`);
     if (fs.existsSync(hashFilePath)) {
       return res.send(
-        `<p class="succes">File uploaded succesfully:<br> <a href="/file/${fileHash}">${req.file.originalname}</a></p>`
+        `<p class="success">File uploaded succesfully:<br> <a href="/file/${fileHash}">${req.file.originalname}</a></p>`
       );
-    }
-
-    else {
+    } else {
       // Save the hash for file access later
       fs.writeFileSync(hashFilePath, req.file.originalname);
-  
+
       res.send(
-        `<p class="succes">File uploaded succesfully:<br> <a href="/file/${fileHash}">${req.file.originalname}</a></p>`
+        `<p class="success">File uploaded successfully:<br> <a href="/file/${fileHash}">${req.file.originalname}</a></p>`
       );
     }
-
-    
   } catch (error) {
     console.error("Error generating file hash:", error);
     res.status(500).send("Error processing file");
