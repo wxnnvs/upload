@@ -1,3 +1,5 @@
+/* IMPORTS */
+
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
@@ -6,16 +8,22 @@ const session = require("express-session");
 const bodyParser = require("body-parser"); // For parsing POST data
 const multer = require("multer"); // For handling multipart/form-data
 
+/* VARIABLES AND STUFF */
+/* !! CHANGE THE SESSION SECRET ON LINE 62 !! */
+
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Temporary storage folder for uploads
-const UPLOAD_DIR = path.join(__dirname, "uploads");
+const PORT = process.env.PORT || 3000; // Port to listen on
+const UPLOAD_DIR = path.join(__dirname, "uploads"); // Directory where uploads get saved
+const PASSWORD = "mysecretpassword"; // Change this to your desired password
+let isAuthenticationEnabled = true; // Set to false to disable authentication
+const CLEAR_FILES_ENABLED = false; // Set to true to enable automatic file deletion
+const CLEAR_FILES_INTERVAL_HOURS = 1; // Set the interval in hours
 
-// Serve static files from the "public" directory
+/* ACTUAL CODE */
+
 app.use(express.static(path.join(__dirname, "public")));
 
-// Configure Multer with diskStorage for efficient file saving
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = UPLOAD_DIR;
@@ -31,14 +39,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage }).single("file");
 
-// Password for the page
-const PASSWORD = "mysecretpassword"; // Change this to your desired password
-
-// Configuration for periodic file clearing
-const CLEAR_FILES_ENABLED = false; // Set to false to disable
-const CLEAR_FILES_INTERVAL_HOURS = 1; // Set the interval in hours
-
-// Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR);
 }
@@ -66,9 +66,6 @@ app.use(
 // Body parser middleware to handle form data
 app.use(bodyParser.urlencoded({ extended: true })); // Make sure this is before your routes
 
-// Track whether authentication is enabled
-let isAuthenticationEnabled = true; // Default state is enabled
-
 // Middleware to check if the user is authenticated
 const checkAuthentication = (req, res, next) => {
   if (isAuthenticationEnabled && req.session && req.session.isAuthenticated) {
@@ -80,26 +77,10 @@ const checkAuthentication = (req, res, next) => {
 };
 
 // Serve login page
+// res.sendFile(path.join(__dirname, 'pages', 'login.html'));
+
 app.get("/login", (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <title>Login</title>
-    </head>
-    <body>
-    <link rel="stylesheet" type="text/css" href="/style.css">
-    <h1>Login</h1>
-    <form action="/login" method="POST">
-      <label for="password">Password: </label>
-      <input type="password" id="password" name="password" required />
-      <br>
-      <br>
-      <button type="submit">Submit</button>
-    </form>
-    </body>
-    </html>
-  `);
+  res.sendFile(path.join(__dirname, "pages", "login.html"));
 });
 
 // Handle login form submission
@@ -111,26 +92,7 @@ app.post("/login", (req, res) => {
     return res.redirect("/");
   }
   // Password is incorrect, show an error message
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <title>Login</title>
-    </head>
-    <body>
-    <link rel="stylesheet" type="text/css" href="/style.css">
-    <h1>Login</h1>
-    <form action="/login" method="POST">
-      <label for="password">Password: </label>
-      <input type="password" id="password" name="password" required />
-      <br>
-      <br>
-      <button type="submit">Submit</button>
-    </form>
-    <p class="error">Incorrect password.</p>
-    </body>
-    </html>
-  `);
+  res.sendFile(path.join(__dirname, "pages", "wrong-pass.html"));
 });
 
 // Handle logout
@@ -141,109 +103,11 @@ app.post("/logout", (req, res) => {
 
 // Serve the upload page only if authenticated
 app.get("/", checkAuthentication, (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <title>Upload</title>
-    </head>
-    <body>
-    <link rel="stylesheet" type="text/css" href="/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
-    <h1>Upload a File</h1>
-    <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
-        <input type="file" id="fileInput" name="file" />
-        <input type="hidden" id="md5Input" name="md5">
-        <br>
-        <br>
-        <button type="button" onclick="checkFile()">Upload</button>
-    </form>
-    <p id="uploadStatus"></p>
-    <button class="nav" onclick="window.location.href='/browse'">Browse Files</button>
-
-    ${
-      isAuthenticationEnabled
-        ? `
-    <form action="/logout" method="POST">
-      <button type="submit" class="logout">Logout</button>
-    </form>
-    `
-        : ""
-    }
-
-    <script>
-        async function generateMD5(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                const md5 = CryptoJS.algo.MD5.create();
-
-                reader.onload = function(event) {
-                    const data = event.target.result;
-                    const wordArray = CryptoJS.lib.WordArray.create(data);
-                    md5.update(wordArray);
-                    resolve(md5.finalize().toString(CryptoJS.enc.Hex)); // Return the hash as a hex string
-                };
-
-                reader.onerror = function() {
-                    reject(new Error("Error reading the file"));
-                };
-
-                reader.readAsArrayBuffer(file);
-            });
-        }
-
-        async function checkFile() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('Please select a file first.');
-                return;
-            }
-
-            try {
-                const md5 = await generateMD5(file); // Wait for MD5 hash generation
-                document.getElementById('md5Input').value = md5;
-                const fileName = file.name;
-
-                fetch('/file/' + md5).then(response => {
-                    if (response.ok) {
-                        document.getElementById('uploadStatus').innerHTML = '<p class="success">File uploaded succesfully:<br> <a href="/file/' + md5 + '">' + fileName + '</a></p>';
-                        return;
-                    }
-                    else {
-                      sendFile(file, md5);
-                    }
-                });
-            } catch (error) {
-                alert('Error generating MD5 hash: ' + error.message);
-            }
-        }
-
-        function sendFile(file, md5) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/upload', true);
-
-            xhr.onload = () => {
-                if (xhr.status === 200) {
-                    document.getElementById('uploadStatus').innerHTML = xhr.responseText;
-                } else {
-                    document.getElementById('uploadStatus').textContent = 'Upload failed.';
-                }
-            };
-
-            xhr.onerror = () => {
-                document.getElementById('uploadStatus').textContent = 'Upload failed.';
-            };
-
-            xhr.send(formData);
-        }
-    </script>
-    </body>
-    </html>
-`);
+  if (isAuthenticationEnabled) {
+    res.sendFile(path.join(__dirname, "pages", "index1.html"));
+  } else {
+    res.sendFile(path.join(__dirname, "pages", "index2.html"));
+  }
 });
 
 // Browse files
@@ -314,8 +178,6 @@ app.post("/upload", checkAuthentication, upload, async (req, res) => {
   }
 
   const md5 = req.body.md5; // Get the MD5 hash from the request body
-  console.log("Uploaded file:", req.file.originalname);
-  console.log("MD5:", md5); // Log the MD5 hash
 
   try {
     const filePath = path.join(UPLOAD_DIR, req.file.originalname);
