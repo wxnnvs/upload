@@ -48,6 +48,7 @@ To edit the password follow these steps:
 
 - `app.js`: Main application file.
 - `uploads/`: Directory where uploaded files are stored.
+- `pages/`: Directory where html is stored.
 - `package.json`: Project metadata and dependencies.
 - `.gitignore`: Specifies files and directories to be ignored by Git.
 
