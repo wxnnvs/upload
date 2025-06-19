@@ -217,7 +217,7 @@ app.get("/file/:hash", (req, res) => {
   const filePath = path.join(UPLOAD_DIR, originalname);
 
   // Send the file as an attachment
-  res.download(filePath, originalname, (err) => {
+  res.sendFile(filePath, (err) => {
     if (err) {
       console.error("Error sending file:", err);
       res.status(500).send("Error downloading file");
