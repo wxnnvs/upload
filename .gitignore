@@ -19,3 +19,7 @@ coverage/
 .vscode/
 *.sublime-workspace
 *.sublime-project
+
+# Custom stuff
+uploads/
+upload/
